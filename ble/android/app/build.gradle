@@ -76,7 +76,7 @@ android {
     namespace "com.ble"
     defaultConfig {
         applicationId "com.ble"
-        minSdkVersion rootProject.ext.minSdkVersion
+        minSdkVersion 23
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
