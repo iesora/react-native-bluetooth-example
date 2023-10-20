@@ -9,95 +9,129 @@ import {
   Alert,
 } from 'react-native';
 import {BleManager, Device} from 'react-native-ble-plx';
-import {PERMISSIONS, request} from 'react-native-permissions';
+import Sample from './component/sample';
 
 const App = () => {
-  const manager = new BleManager();
-  const [state, setState] = React.useState('');
-  const [devices, setDevices] = useState<Device[]>([]);
-  const [device, setDevice] = useState<Device | null>(null);
-  const [notification, setNotification] = useState<string | null>(null);
-  React.useEffect(() => {
-    manager.state().then(state => {
-      setState(state);
-    });
-  });
+  const [manager] = useState(new BleManager());
 
-  return (
-    <View>
-      <Button
-        title={'テスト'}
-        onPress={() => {
-          const devicesStore: Device[] = [];
-          manager.startDeviceScan(null, null, (error, scannedDevice) => {
+  useEffect(() => {
+    const deviceId = 'DC:0D:30:14:6C:BD';
+    const serviceUUID = '00001801-0000-1000-8000-00805f9b34fb';
+    const characteristicUUID = '00002a05-0000-1000-8000-00805f9b34fb';
+
+    let monitorSubscription;
+    const setupConnection = async () => {
+      try {
+        // デバイスと接続
+        const connectedDevice = await manager.connectToDevice(deviceId);
+        console.log(
+          'Connected to device:',
+          connectedDevice.name,
+          connectedDevice.id,
+        );
+
+        // サービスとキャラクタリスティックの発見
+        await connectedDevice.discoverAllServicesAndCharacteristics();
+
+        // キャラクタリスティックを監視
+        monitorSubscription = manager.monitorCharacteristicForDevice(
+          deviceId,
+          serviceUUID,
+          characteristicUUID,
+          (error, characteristic) => {
             if (error) {
-              console.error('Scanning error:', error);
+              console.error('Monitoring error:', error);
               return;
             }
-            if (scannedDevice) {
-              const isExist = devicesStore.some(d => d.id === scannedDevice.id);
-              if (isExist === false) {
-                devicesStore.push(scannedDevice);
-              }
-            }
-          });
-          setTimeout(() => {
-            manager.stopDeviceScan();
-            setDevices(devicesStore);
-            Alert.alert('更新確認');
-          }, 5000);
-        }}
-      />
-      <View style={{height: 60}} />
-      <Button
-        title="リクエスト"
-        onPress={() => {
-          console.log('aaaa');
-          request(PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION).then(response => {
-            if (response === 'granted') {
-              // Start scanning
-            }
-          });
-        }}
-      />
-      <View style={{height: 60}} />
-      <Button
-        title="確認"
-        onPress={() => {
-          console.log(devices);
-        }}
-      />
-      <View style={{height: 60}} />
-      <Button
-        title="ip確認"
-        onPress={() => {
-          console.log(devices.length);
-          devices.map(d => {
-            console.log(d.id);
-          });
-        }}
-      />
-      <Button
-        title="ビーコン接続"
-        onPress={() => {
-          manager
-            .connectToDevice('DC:0D:30:14:6C:BD')
-            .then(connectedDevice => {
-              setDevice(connectedDevice);
-              console.log(
-                'Connected to device:',
-                connectedDevice.name,
-                connectedDevice.id,
-              );
-            })
-            .catch(error => {
-              console.error('Connection error:', error);
-            });
-        }}
-      />
+            console.log('Received data:', characteristic?.value);
+          },
+        );
+      } catch (error) {
+        console.error('Connection or discovery error:', error);
+      }
+    };
 
+    setupConnection();
+
+    // コンポーネントがアンマウントされるとき、監視と接続を停止する
+    return () => {
+      manager.cancelDeviceConnection(deviceId);
+    };
+  }, [manager]);
+
+  /**
+  const connectToDevice = async () => {
+    try {
+      const connectedDevice = await manager.connectToDevice(device);
+      console.log(
+        'Connected to device:',
+        connectedDevice.name,
+        connectedDevice.id,
+      );
+    } catch (error) {
+      console.error('Connection error:', error);
+    }
+  };
+  */
+  /**
+  useEffect(() => {
+    const deviceId = 'DC:0D:30:14:6C:BD';
+    const serviceUUID = '00001800-0000-1000-8000-00805f9b34fb';
+    const characteristicUUID = '00002a00-0000-1000-8000-00805f9b34fb';
+
+    const subscription = manager.monitorCharacteristicForDevice(
+      deviceId,
+      serviceUUID,
+      characteristicUUID,
+      (error, characteristic) => {
+        if (error) {
+          console.error('Monitoring error:', error);
+          return;
+        }
+
+        console.log('Received data:', characteristic?.value);
+      },
+    );
+
+    // コンポーネントがアンマウントされるとき、監視を停止する
+    return () => {
+      subscription.remove();
+    };
+  }, [manager]);
+
+   */
+
+  /**
+  useEffect(() => {
+    const deviceId = 'DC:0D:30:14:6C:BD';
+    const serviceUUID = '00001800-0000-1000-8000-00805f9b34fb';
+    const characteristicUUID = '00002a00-0000-1000-8000-00805f9b34fb';
+    const subscription = manager.monitorCharacteristicForDevice(
+      deviceId,
+      serviceUUID,
+      characteristicUUID,
+      (error, characteristic) => {
+        if (error) {
+          console.error('Monitoring error:', error);
+          return;
+        }
+
+        console.log('Received data:', characteristic.value);
+      },
+    );
+
+    // コンポーネントがアンマウントされるとき、監視を停止する
+    return () => {
+      subscription.remove();
+    };
+  }, [manager]);
+  */
+
+  return (
+    <>
+      <Sample />
       <Button
-        title="ビーコン2"
+        title="キャラクタID"
         onPress={async () => {
           const connectedDevice = await manager.connectToDevice(
             'DC:0D:30:14:6C:BD',
@@ -110,129 +144,33 @@ const App = () => {
 
           const discoveredDevice =
             await connectedDevice.discoverAllServicesAndCharacteristics();
-          console.log('1');
+
           setTimeout(async () => {
-            const services = await discoveredDevice.services();
-            const SERVICE_UUID = services[0].uuid;
-            setTimeout(async () => {
-              const characteristics =
-                await discoveredDevice.characteristicsForService(SERVICE_UUID);
-              const CHARACTERISTIC_UUID = characteristics[0].uuid;
-              console.log('CHARACTERISTIC_UUID', CHARACTERISTIC_UUID);
-              setTimeout(async () => {
-                const characteristic =
-                  await manager.monitorCharacteristicForDevice(
-                    discoveredDevice.id,
-                    SERVICE_UUID,
-                    CHARACTERISTIC_UUID,
-                    (error, characteristic) => {
-                      if (error) {
-                        console.error('Notification error:', error);
-                        return;
-                      }
-                      if (characteristic) {
-                        const notificationData = characteristic.value; // Base64 encoded string
-                        setNotification(notificationData);
-                      }
-                    },
-                  );
-                console.log('characteristic', characteristic);
-              }, 500);
-            }, 100);
-          }, 100);
-
-          /**
-          const services = await discoveredDevice.services();
-
-          const SERVICE_UUID = services[0].uuid;
-          console.log('SERVICE_UUID', SERVICE_UUID);
-
-          const characteristics =
-            await discoveredDevice.characteristicsForService(SERVICE_UUID);
-
-          const CHARACTERISTIC_UUID = characteristics[0].uuid;
-          console.log('CHARACTERISTIC_UUID', CHARACTERISTIC_UUID);
-          */
-          /**
-          const characteristic = await manager.monitorCharacteristicForDevice(
-            discoveredDevice.id,
-            SERVICE_UUID,
-            CHARACTERISTIC_UUID,
-            (error, characteristic) => {
-              if (error) {
-                console.error('Notification error:', error);
-                return;
-              }
-              if (characteristic) {
-                const notificationData = characteristic.value; // Base64 encoded string
-                setNotification(notificationData);
-              }
-            },
-          );
-          console.log('characteristic', characteristic);
-          */
-        }}
-      />
-
-      <Button
-        title="ビーコン サービス確認"
-        onPress={async () => {
-          try {
-            // Connect to device
-            const connectedDevice = await manager.connectToDevice(
-              'DC:0D:30:14:6C:BD',
+            const characteristics =
+              await discoveredDevice.characteristicsForService(
+                '0000fef5-0000-1000-8000-00805f9b34fb',
+              );
+            console.log(
+              'CHARACTERISTIC_UUID',
+              characteristics.map(c => c.uuid),
             );
+          }, 1000);
 
-            // Discover all services and characteristics
-            const discoveredDevice =
-              await connectedDevice.discoverAllServicesAndCharacteristics();
-
-            // Fetch the list of services
-            const services = await discoveredDevice.services();
-
-            // Log the UUIDs of all available services
-            for (const service of services) {
-              console.log(service.uuid);
-            }
-          } catch (error) {
-            console.error('Error:', error);
-          }
+          /**
+        setTimeout(async () => {
+          const characteristics =
+            await discoveredDevice.characteristicsForService(
+              '00001800-0000-1000-8000-00805f9b34fb',
+            );
+          console.log(
+            'CHARACTERISTIC_UUID',
+            characteristics.map(c => c.uuid),
+          );
+        }, 100);
+        */
         }}
       />
-      <Button
-        title="ビーコン確認"
-        onPress={() => {
-          console.log(device);
-        }}
-      />
-      {/**
-      <FlatList
-        data={devices}
-        renderItem={({item}) => (
-          <View>
-            <Button
-              title={item.name || `${item.id}`}
-              onPress={() => {
-                console.log(item.id);
-                manager
-                  .connectToDevice(item.id)
-                  .then(connectedDevice => {
-                    console.log(
-                      'Connected to device:',
-                      connectedDevice.name,
-                      connectedDevice.id,
-                    );
-                  })
-                  .catch(error => {
-                    console.error('Connection error:', error);
-                  });
-              }}
-            />
-          </View>
-        )}
-      />
-      */}
-    </View>
+    </>
   );
 };
 
